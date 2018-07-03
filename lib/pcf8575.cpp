@@ -9,6 +9,8 @@ namespace IOExpansion {
   PCF8575::PCF8575(unsigned int address, I2C * i2c) {
       this->address = address;
       this->i2c = i2c;
+      interrupt = nullptr;
+      queue = nullptr;
 
 #ifdef DO_SIMPLE_LOG
       Log.info("Initializing PCF8575");
@@ -17,6 +19,13 @@ namespace IOExpansion {
       set_all_as_inputs();
       write(0xFFFF);
   }
+
+  PCF8575::PCF8575(unsigned int address, I2C * i2c, PinName interruptPin)
+    : PCF8575(address, i2c) {
+
+      interrupt = new InterruptIn(interruptPin);
+      queue = new EventQueue(QUEUE_SIZE * EVENTS_EVENT_SIZE);
+  }  
 
   unsigned int PCF8575::read(void) {
     char buffer[2];
@@ -27,6 +36,14 @@ namespace IOExpansion {
       return 0;
     };
     return ((buffer[1] << 8) | buffer[0]);
+  }
+
+  PCF8575::~PCF8575(void) {
+    delete interrupt;
+    if (queue) {
+      queue->break_dispatch();
+      delete queue;
+    }
   }
 
   void PCF8575::write(unsigned int data) {
@@ -48,8 +65,16 @@ namespace IOExpansion {
     this->directionMask = mask;
   }
 
+  void PCF8575::register_callback(Callback<void()> func) {
+    if (interrupt) {
+      // Start the event queue's dispatch thread
+      eventDispatchThread.start(callback(queue, &EventQueue::dispatch_forever));
+      // Register handler via event queue (will run in user context)
+      interrupt->fall(queue->event(func));
+    }
+  }
+
   void PCF8575::set_all_as_inputs(void) {
     set_port_direction(ALL_INPUTS);
   }
-
 };
