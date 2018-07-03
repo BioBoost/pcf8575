@@ -6,6 +6,8 @@ Serial pc(USBTX, USBRX);    // tx, rx
 
 // main() runs in its own thread in the OS
 int main() {
+    pc.baud(115200);
+    printf("Starting interrupt example of the PCF8575 IO Expander\n");
 
     I2C i2c(PTE25, PTE24);
     i2c.frequency(400000);
@@ -13,9 +15,6 @@ int main() {
 
     expander.set_port_direction(0x03FF);
     expander.write(0x0000);
-
-    pc.baud(115200);
-    printf("Starting basic polling example of the PCF8575 IO Expander\n");
 
     while (true) {
         alive = !alive;
